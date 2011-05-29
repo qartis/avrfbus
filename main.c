@@ -54,14 +54,14 @@ int main(void) {
     for(;;){
         should_ping = 0;
         ts555_trigger();
-        PCICR |=  (1<<PCIE0);
-        PCICR |=  (1<<PCIE2);
-        led_off();
-        sleep_mode();
-        led_on();
-        PCICR &= ~(1<<PCIE2);
-        PCICR &= ~(1<<PCIE0);
-        ts555_active = 0;
+            PCICR |=  (1<<PCIE0);
+            PCICR |=  (1<<PCIE2);
+                led_off();
+                    sleep_mode();
+                led_on();
+            PCICR &= ~(1<<PCIE2);
+            PCICR &= ~(1<<PCIE0);
+        ts555_deactivate();
 
         enum fbus_frametype type;
         do {

@@ -23,6 +23,10 @@ void ts555_reset(void){
     DDRB &= ~(1<<PORTB3);
 }
 
+void ts555_deactivate(void){
+    ts555_active = 0;
+}
+
 void ts555_trigger(void){
     ts555_active = 0;
     ts555_reset();
