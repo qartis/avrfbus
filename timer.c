@@ -69,7 +69,7 @@ restart:
     return i;
 }
 
-void delay_ms(uint8_t ms){
+void delay_ms(uint16_t ms){
         while(ms){
                 _delay_ms(0.96);
                 ms--;
