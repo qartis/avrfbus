@@ -5,6 +5,7 @@
 
 #include "timer.h"
 #include "fbus.h"
+#include "power.h"
 
 #define TYPE_SMS 0x02
 #define TYPE_ACK 0x7f
@@ -231,7 +232,7 @@ void sendack(uint8_t type, uint8_t seqnum){
     sendframe(TYPE_ACK, buf, sizeof(buf)/sizeof(buf[0]));
 }
 
-enum frametype fbus_readframe(uint8_t timeout){
+enum fbus_frametype fbus_readframe(uint8_t timeout){
     static uint8_t buf[128];
     int8_t n;
     
@@ -375,7 +376,7 @@ void fbus_init(void){
 }
 
 uint8_t fbus_sendsms(const char *num, const char *msg){
-    enum frametype f;
+    enum fbus_frametype f;
 
     fbus_init();
     uart_sendsms(num, msg);
@@ -389,26 +390,25 @@ uint8_t fbus_sendsms(const char *num, const char *msg){
             timer_disable();
             return 0;
         } else {
-    //        printf("waste%u\n", f);
+            printf("waste%u\n", f);
         }
     }
 }
 
-uint8_t fbus_heartbeat(void){
+enum fbus_frametype fbus_heartbeat(void){
     uint8_t getinfo[] = {0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x60};
-    enum frametype f;
+    enum fbus_frametype type;
 
+retry:
     fbus_init();
     sendframe(TYPE_GETID, getinfo, sizeof(getinfo)/sizeof(getinfo[0]));
     timer_start();
-    for(;;){
-        f = fbus_readframe(1);
-        if (f == FRAME_ID){
-            timer_disable();
-            return 1;
-        } else if (f == FRAME_READ_TIMEOUT){
-            timer_disable();
-            return 0;
-        }
+    type = fbus_readframe(1);
+    if (type == FRAME_READ_TIMEOUT){
+        power_press_release();
+        _delay_ms(10000);
+        goto retry;
     }
+    timer_disable();
+    return type;
 }

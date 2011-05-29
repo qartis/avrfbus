@@ -27,23 +27,6 @@ inline uint8_t strstart(const char *buf1, const char *buf2){
     return strncmp(buf1,buf2,strlen(buf2)) == 0;
 }
 
-/*
-char* capture_and_send(void){
-    static char buf[128];
-    uint8_t i;
-    for (i=0; i<10; i++){
-        if (getline_timeout(buf, sizeof(buf), 2) == 0){
-            continue;
-        }
-        buf[strlen(buf)-1] = '\0';
-        if (strstart(buf,"$GPRMC") && checksum(buf)){
-            return buf;
-        }
-    }
-    return NULL;
-}
-*/
-
 volatile uint8_t should_ping;
 
 EMPTY_INTERRUPT(PCINT2_vect);
@@ -81,11 +64,12 @@ int main(void) {
         PCICR &= ~(1<<PCIE0);
         ts555_active = 0;
 
-        enum frametype type;
+        enum fbus_frametype type;
         do {
             timer_start();
             type = fbus_readframe(2);
             timer_disable();
+handle_packet:
             switch (type){
             case FRAME_READ_TIMEOUT:
                 break;
@@ -103,16 +87,13 @@ int main(void) {
             }
         } while (type != FRAME_READ_TIMEOUT);
         if (should_ping){
-            uint8_t rc = fbus_heartbeat();
-            printf("heartbeat: %d\n", rc);
-            if (rc == 0){
-                rc = fbus_heartbeat();
-                if (rc == 0){
-                    printf("heartbeat failed! trying to turn phone on\n");
-                    power_press_release();
-                    _delay_ms(10000);
-                    printf("done\n");
-                }
+            should_ping = 0;
+            printf("heartbeat: ");
+            type = fbus_heartbeat();
+            if (type == FRAME_ID){
+                printf("OK\n");
+            } else {
+                goto handle_packet;
             }
         }
     }

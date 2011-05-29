@@ -1,11 +1,11 @@
-enum frametype fbus_readframe(uint8_t timeout);
+enum fbus_frametype fbus_readframe(uint8_t timeout);
 uint8_t fbus_sendsms(const char *num, const char *msg);
-uint8_t fbus_heartbeat(void);
+enum fbus_frametype fbus_heartbeat(void);
 
 extern char unbcd_buf[16];
 extern char unpack7_buf[32];
 
-enum frametype {
+enum fbus_frametype {
     FRAME_READ_TIMEOUT,
     FRAME_SMS_SENT,
     FRAME_SMS_RECV,
