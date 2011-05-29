@@ -284,6 +284,12 @@ retry:
         sendack(type, seq_no & 0x0f);
         delay_ms(100);
         if (type == TYPE_SMS && buf[3] == 0x10){
+            uint8_t i;
+            printf("GOT ");
+            for(i=0;i<len;i++){
+                printf("%x ", buf[i]);
+            }
+            putchar('\n');
             unbcd(buf+23);
             unpack7(buf+42, buf[22]);
             return FRAME_SMS_RECV;
