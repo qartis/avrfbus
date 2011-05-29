@@ -7,6 +7,7 @@
 #include "fbus.h"
 #include "power.h"
 
+#define TYPE_SMS_MGMT 0x14
 #define TYPE_SMS 0x02
 #define TYPE_ACK 0x7f
 #define TYPE_GETID 0xd1
@@ -284,25 +285,11 @@ retry:
         sendack(type, seq_no & 0x0f);
         delay_ms(100);
         if (type == TYPE_SMS && buf[3] == 0x10){
-            uint8_t i;
-            printf("GOT ");
-            for(i=0;i<len;i++){
-                printf("%x ", buf[i]);
-            }
-            putchar('\n');
             unbcd(buf+23);
             unpack7(buf+42, buf[22]);
+            fbus_delete_sms(buf[4], buf[5]);
             return FRAME_SMS_RECV;
         } else if (type == TYPE_SMS && buf[3] == 0x02){
-            /*
-            uint8_t i;
-            printf("GOOD");
-            for(i=0;i<len;i++){
-                printf("%x ", buf[i]);
-            }
-            putchar('\n');
-            */
-
             return FRAME_SMS_SENT;
         } else if (type == TYPE_SMS && buf[3] == 0x03){
             printf("BAD");
@@ -401,18 +388,26 @@ uint8_t fbus_sendsms(const char *num, const char *msg){
     }
 }
 
+void fbus_delete_sms(uint8_t memory_type, uint8_t storage_loc){
+    uint8_t del_sms[] = {0x00, 0x01, 0x00, 0x0a, memory_type, storage_loc, 0x01};
+
+    fbus_init();
+    sendframe(TYPE_SMS_MGMT, del_sms, sizeof(del_sms));
+}
+
+
 enum fbus_frametype fbus_heartbeat(void){
-    uint8_t getinfo[] = {0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x60};
+    uint8_t get_info[] = {0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x60};
     enum fbus_frametype type;
 
 retry:
     fbus_init();
-    sendframe(TYPE_GETID, getinfo, sizeof(getinfo)/sizeof(getinfo[0]));
+    sendframe(TYPE_GETID, get_info, sizeof(get_info));
     timer_start();
     type = fbus_readframe(1);
     if (type == FRAME_READ_TIMEOUT){
         power_press_release();
-        _delay_ms(10000);
+        delay_ms(10000);
         goto retry;
     }
     timer_disable();
