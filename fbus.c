@@ -6,6 +6,7 @@
 #include "timer.h"
 #include "fbus.h"
 #include "power.h"
+#include "uart.h"
 
 #define TYPE_SMS_MGMT 0x14
 #define TYPE_SMS 0x02
@@ -16,7 +17,7 @@
 
 inline void print(const uint8_t *buf, uint8_t len){
     while(len--){
-        putchar(*buf++);
+        uart_putchar(*buf++, NULL);
     }
 }
 
@@ -203,8 +204,8 @@ void sendframe(uint8_t type, uint8_t *data, uint8_t size){
     buf[at++] = size;
 
     // add data
-    for(n = 0; n < size; ++n)
-        buf[at++] = data[n];
+    memcpy(buf+6, data, size);
+    at += size;
 
     // if odd numbered, add filler byte
     if(size % 2) {
@@ -297,7 +298,7 @@ retry:
             for(i=0;i<len;i++){
                 printf("%x ", buf[i]);
             }
-            putchar('\n');
+            uart_putchar('\n', NULL);
             return FRAME_SMS_ERROR;
         } else if (type == TYPE_ID){
             return FRAME_ID;
@@ -362,7 +363,7 @@ void uart_sendsms(const char *num, const char *ascii){
 void fbus_init(void){
     uint8_t c;
     for (c = 0; c < 128; c++){
-        putchar('U');
+        uart_putchar('U', NULL);
         delay_ms(1);
     }
     delay_ms(1);
