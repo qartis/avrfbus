@@ -58,7 +58,6 @@ int main(void) {
         PCICR |=  (1<<PCIE2);
         led_off();
         sleep_mode();
-        //it sleeps several times?
         led_on();
         PCICR &= ~(1<<PCIE2);
         PCICR &= ~(1<<PCIE0);
