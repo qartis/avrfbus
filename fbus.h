@@ -3,8 +3,8 @@ uint8_t fbus_sendsms(const char *num, const char *msg);
 enum fbus_frametype fbus_heartbeat(void);
 void fbus_delete_sms(uint8_t memory_type, uint8_t storage_loc);
 
-extern char unbcd_buf[16];
-extern char unpack7_buf[32];
+extern char phonenum_buf[16];
+extern char msg_buf[32];
 
 enum fbus_frametype {
     FRAME_READ_TIMEOUT,

@@ -58,6 +58,7 @@ struct coord {
     uint32_t frac;
 };
 
+/* this updates *nmea to point at the start of the next sentence */
 struct coord parse_coord(const char **nmea){
     const char *buf = *nmea;
     struct coord coord;
@@ -104,12 +105,13 @@ void parse_nmea(const char *buf){
         if (*buf != 'A'){ /* 'A' means A Valid Fix */
             return;
         }
-        buf += 2; /* this puts us at the start of the lat */
+        //buf += 2; /* this puts us at the start of the lat */
+        /*
         struct coord c;
         c = parse_coord(&buf);
-        //printf("%d.%8lu,", c.deg, c.frac);
+        printf("%d.%8lu,", c.deg, c.frac);
         c = parse_coord(&buf);
-        //printf("%d.%8lu\n", c.deg, c.frac);
-        (void)c;
+        printf("%d.%8lu\n", c.deg, c.frac);
+        */
     }
 }

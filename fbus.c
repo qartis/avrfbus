@@ -71,28 +71,28 @@ void addchar(char *str, char c){
     str[n+1] = 0;
 }
 
-char unbcd_buf[16];
-void unbcd(uint8_t *dat){
+char phonenum_buf[16];
+void unbcd_phonenum(uint8_t *dat){
     uint8_t len, n, x, at;
 
-    unbcd_buf[0] = 0;
+    phonenum_buf[0] = 0;
     len = dat[0];
 
     if(dat[1] == 0x6f || dat[1] == 0x91) {
-        addchar(unbcd_buf, '+');
+        addchar(phonenum_buf, '+');
     }
 
     at = 2;
     for(n = 0; n < len; ++n) {
         x = dat[at] & 0x0f;
         if(x < 10)
-            addchar(unbcd_buf, '0' + x);
+            addchar(phonenum_buf, '0' + x);
         ++n;
         if(!(n < len))
             break;
         x = (dat[at] >> 4) & 0x0f;
         if(x < 10)
-            addchar(unbcd_buf, '0' + x);
+            addchar(phonenum_buf, '0' + x);
         ++at;
     }
 }
@@ -112,8 +112,8 @@ uint8_t escaped(uint8_t c){
     }
 }
 
-char unpack7_buf[32];
-void unpack7(uint8_t *dat, uint8_t len){
+char msg_buf[32];
+void unpack7_msg(uint8_t *dat, uint8_t len){
     uint16_t *p, w;
     uint8_t c;
     uint8_t n;
@@ -121,7 +121,7 @@ void unpack7(uint8_t *dat, uint8_t len){
     uint8_t at = 0;
     uint8_t escape = 0;
 
-    unpack7_buf[0] = 0;
+    msg_buf[0] = 0;
     for(n = 0; n < len; ++n) {
         p = (uint16_t *)(dat + at);
         w = *p;
@@ -135,12 +135,12 @@ void unpack7(uint8_t *dat, uint8_t len){
         }
 
         if (escape){
-            addchar(unpack7_buf, escaped(c));
+            addchar(msg_buf, escaped(c));
             escape = 0;
         } else if (c == 0x1b){
             escape = 1;
         } else {
-            addchar(unpack7_buf, table[c]);
+            addchar(msg_buf, table[c]);
         }
     }
 }
@@ -286,8 +286,8 @@ retry:
         sendack(type, seq_no & 0x0f);
         delay_ms(100);
         if (type == TYPE_SMS && buf[3] == 0x10){
-            unbcd(buf+23);
-            unpack7(buf+42, buf[22]);
+            unbcd_phonenum(buf+23);
+            unpack7_msg(buf+42, buf[22]);
             fbus_delete_sms(buf[4], buf[5]);
             return FRAME_SMS_RECV;
         } else if (type == TYPE_SMS && buf[3] == 0x02){
@@ -396,21 +396,20 @@ void fbus_delete_sms(uint8_t memory_type, uint8_t storage_loc){
     sendframe(TYPE_SMS_MGMT, del_sms, sizeof(del_sms));
 }
 
-
 enum fbus_frametype fbus_heartbeat(void){
     uint8_t get_info[] = {0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x60};
     enum fbus_frametype type;
 
-retry:
-    fbus_init();
-    sendframe(TYPE_GETID, get_info, sizeof(get_info));
-    timer_start();
-    type = fbus_readframe(1);
-    if (type == FRAME_READ_TIMEOUT){
+    for(;;){
+        fbus_init();
+        sendframe(TYPE_GETID, get_info, sizeof(get_info));
+        timer_start();
+        type = fbus_readframe(1);
+        if (type != FRAME_READ_TIMEOUT){
+            timer_disable();
+            return type;
+        }
         power_press_release();
         delay_ms(10000);
-        goto retry;
     }
-    timer_disable();
-    return type;
 }

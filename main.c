@@ -37,17 +37,34 @@ ISR(PCINT0_vect){
     }
 }
 
+void handle_fbus_packet(enum fbus_frametype type){
+    switch (type){
+    case FRAME_READ_TIMEOUT:
+    case FRAME_NET_STATUS:
+    case FRAME_ID:
+        break;
+    case FRAME_SMS_RECV:
+        printf("from '%s'\nmsg: '%s'\n", msg_buf, phonenum_buf);
+        if (streq(msg_buf, "ping")){
+            uint8_t rc = fbus_sendsms(phonenum_buf, "pong");
+            printf("sms: %u\n", rc);
+        }
+        break;
+    default:
+        printf("strange type %u\n", type);
+        break;
+    }
+}
+
 int main(void) {
     wdt_disable();
     led_init();
-	uart_init(BAUD(PHONE_BAUD));
+    uart_init(BAUD(PHONE_BAUD));
     multiplex_init();
     ts555_init();
     power_init();
     sei();
     delay_ms(10);
-
-    printf("tart\n");
 
     PCMSK2 = 1<<PCINT16;
     set_sleep_mode(SLEEP_MODE_PWR_DOWN);
@@ -68,32 +85,13 @@ int main(void) {
             timer_start();
             type = fbus_readframe(2);
             timer_disable();
-handle_packet:
-            switch (type){
-            case FRAME_READ_TIMEOUT:
-                break;
-            case FRAME_SMS_RECV:
-                printf("from '%s'\nmsg: '%s'\n", unbcd_buf, unpack7_buf);
-                if (streq(unpack7_buf, "ping")){
-                    uint8_t rc = fbus_sendsms(unbcd_buf, "pong");
-                    printf("\nsms: %u\n", rc);
-                }
-                break;
-            case FRAME_NET_STATUS:
-                break;
-            default:
-                printf("strange type %u\n", type);
-            }
+            handle_fbus_packet(type);
         } while (type != FRAME_READ_TIMEOUT);
+
         if (should_ping){
             should_ping = 0;
-            printf("heartbeat: ");
             type = fbus_heartbeat();
-            if (type == FRAME_ID){
-                printf("OK\n");
-            } else {
-                goto handle_packet;
-            }
+            handle_fbus_packet(type);
         }
     }
 }
