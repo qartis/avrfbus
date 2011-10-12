@@ -63,38 +63,39 @@ uint8_t bcd(uint8_t *dest, const char *s){
     return y;
 }
 
-void addchar(char *str, char c){
-    uint8_t n;
-
-    n = strlen(str);
-    str[n] = c;
-    str[n+1] = 0;
+char* addchar(char *str, char c){
+    *buf = c;
+    return buf + 1;
 }
 
 char phonenum_buf[16];
-void unbcd_phonenum(uint8_t *dat){
+void unbcd_phonenum(uint8_t *data){
     uint8_t len, n, x, at;
+    char *endptr = phonenum_buf;
 
-    phonenum_buf[0] = 0;
-    len = dat[0];
+    len = data[0];
 
-    if(dat[1] == 0x6f || dat[1] == 0x91) {
-        addchar(phonenum_buf, '+');
+    if(data[1] == 0x6f || data[1] == 0x91){
+        endptr = addchar(endptr, '+');
     }
 
     at = 2;
     for(n = 0; n < len; ++n) {
-        x = dat[at] & 0x0f;
-        if(x < 10)
-            addchar(phonenum_buf, '0' + x);
-        ++n;
-        if(!(n < len))
+        x = data[at] & 0x0f;
+        if(x < 10){
+            endptr = addchar(endptr, '0' + x);
+        }
+        n++;
+        if(n >= len){
             break;
-        x = (dat[at] >> 4) & 0x0f;
-        if(x < 10)
-            addchar(phonenum_buf, '0' + x);
-        ++at;
+        }
+        x = (data[at] >> 4) & 0x0f;
+        if(x < 10){
+            endptr = addchar(endptr, '0' + x);
+        }
+        at++;
     }
+    *endptr = '\0';
 }
 
 uint8_t escaped(uint8_t c){
@@ -113,17 +114,17 @@ uint8_t escaped(uint8_t c){
 }
 
 char msg_buf[32];
-void unpack7_msg(uint8_t *dat, uint8_t len){
+void unpack7_msg(uint8_t *data, uint8_t len){
     uint16_t *p, w;
     uint8_t c;
     uint8_t n;
     uint8_t shift = 0;
     uint8_t at = 0;
     uint8_t escape = 0;
+    char *endptr = msg_buf;
 
-    msg_buf[0] = 0;
     for(n = 0; n < len; ++n) {
-        p = (uint16_t *)(dat + at);
+        p = (uint16_t *)(data + at);
         w = *p;
         w >>= shift;
         c = w & 0x7f;
@@ -131,18 +132,19 @@ void unpack7_msg(uint8_t *dat, uint8_t len){
         shift += 7;
         if(shift & 8) {
             shift &= 0x07;
-            ++at;
+            at++;
         }
 
         if (escape){
-            addchar(msg_buf, escaped(c));
+            endptr = addchar(endptr, escaped(c));
             escape = 0;
         } else if (c == 0x1b){
             escape = 1;
         } else {
-            addchar(msg_buf, table[c]);
+            endptr = addchar(endptr, table[c]);
         }
     }
+    *endptr = '\0';
 }
 
 uint8_t gettrans(uint8_t c){
@@ -181,7 +183,7 @@ uint8_t pack7(uint8_t *dest, const char *s){
         shift += 7;
         if(shift >= 8) {
             shift &= 7;
-            ++at;
+            at++;
         }
     }
     return len;
@@ -282,31 +284,24 @@ retry:
     }
     if (type == TYPE_ACK){
         goto retry;
+    }
+    sendack(type, seq_no & 0x0f);
+    delay_ms(100);
+    if (type == TYPE_SMS && buf[3] == 0x10){
+        unbcd_phonenum(buf+23);
+        unpack7_msg(buf+42, buf[22]);
+        fbus_delete_sms(buf[4], buf[5]);
+        return FRAME_SMS_RECV;
+    } else if (type == TYPE_SMS && buf[3] == 0x02){
+        return FRAME_SMS_SENT;
+    } else if (type == TYPE_SMS && buf[3] == 0x03){
+        return FRAME_SMS_ERROR;
+    } else if (type == TYPE_ID){
+        return FRAME_ID;
+    } else if (type == TYPE_NET_STATUS){
+        return FRAME_NET_STATUS;
     } else {
-        sendack(type, seq_no & 0x0f);
-        delay_ms(100);
-        if (type == TYPE_SMS && buf[3] == 0x10){
-            unbcd_phonenum(buf+23);
-            unpack7_msg(buf+42, buf[22]);
-            fbus_delete_sms(buf[4], buf[5]);
-            return FRAME_SMS_RECV;
-        } else if (type == TYPE_SMS && buf[3] == 0x02){
-            return FRAME_SMS_SENT;
-        } else if (type == TYPE_SMS && buf[3] == 0x03){
-            printf("BAD");
-            uint8_t i;
-            for(i=0;i<len;i++){
-                printf("%x ", buf[i]);
-            }
-            uart_putchar('\n', NULL);
-            return FRAME_SMS_ERROR;
-        } else if (type == TYPE_ID){
-            return FRAME_ID;
-        } else if (type == TYPE_NET_STATUS){
-            return FRAME_NET_STATUS;
-        } else {
-            return FRAME_UNKNOWN;
-        }
+        return FRAME_UNKNOWN;
     }
 }
 
@@ -383,8 +378,6 @@ uint8_t fbus_sendsms(const char *num, const char *msg){
         } else if (f == FRAME_READ_TIMEOUT){
             timer_disable();
             return 0;
-        } else {
-            printf("waste%u\n", f);
         }
     }
 }
