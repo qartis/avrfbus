@@ -356,7 +356,6 @@ void fbus_init(void){
         uart_putchar('U', NULL);
         delay_ms(1);
     }
-    delay_ms(1);
 }
 
 uint8_t fbus_sendsms(const char *num, const char *msg){
