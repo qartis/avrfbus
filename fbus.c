@@ -63,11 +63,6 @@ uint8_t bcd(uint8_t *dest, const char *s){
     return y;
 }
 
-char* addchar(char *str, char c){
-    *buf = c;
-    return buf + 1;
-}
-
 char phonenum_buf[16];
 void unbcd_phonenum(uint8_t *data){
     uint8_t len, n, x, at;
@@ -76,14 +71,14 @@ void unbcd_phonenum(uint8_t *data){
     len = data[0];
 
     if(data[1] == 0x6f || data[1] == 0x91){
-        endptr = addchar(endptr, '+');
+        *endptr++ = '+';
     }
 
     at = 2;
     for(n = 0; n < len; ++n) {
         x = data[at] & 0x0f;
         if(x < 10){
-            endptr = addchar(endptr, '0' + x);
+            *endptr++ = '0' + x;
         }
         n++;
         if(n >= len){
@@ -91,7 +86,7 @@ void unbcd_phonenum(uint8_t *data){
         }
         x = (data[at] >> 4) & 0x0f;
         if(x < 10){
-            endptr = addchar(endptr, '0' + x);
+            *endptr++ = '0' + x;
         }
         at++;
     }
@@ -136,12 +131,12 @@ void unpack7_msg(uint8_t *data, uint8_t len){
         }
 
         if (escape){
-            endptr = addchar(endptr, escaped(c));
+            *endptr++ = escaped(c);
             escape = 0;
         } else if (c == 0x1b){
             escape = 1;
         } else {
-            endptr = addchar(endptr, table[c]);
+            *endptr++ = table[c];
         }
     }
     *endptr = '\0';
